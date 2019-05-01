@@ -3,9 +3,7 @@
 require 'builder'
 require 'feedbag'
 require 'json'
-require 'net/http'
 require 'nokogiri'
-require 'uri'
 
 OUTPUT_FILENAME = 'engineering_blogs.opml'
 TITLE = 'Engineering Blogs'
@@ -14,32 +12,49 @@ TITLE = 'Engineering Blogs'
 readme = File.open('README.md', 'r')
 contents = readme.read
 matches = contents.scan(/\* (.*) (http.*)/)
-# All blogs that do not respond
+
+# skip over blogs that aren't found
 unavailable = []
-temp_ignores = [
-  'AdRoll',
-  'Buzzfeed',
-  'Opendoor',
+fast_forwards = [
+  'Baidu Research',
+  'Booking.com',
+  'Fynd',
+  'Graphcool',
+  'LinkedIn',
+  'Medallia',
+  'OmniTI',
+  'Paperless Post',
+  'Pluralsight',
+  'Prolific Interactive',
+  'Quora',
+  'Robert Elder Software',
+  'Simple',
+  'SlideShare',
   'SourceClear',
-  'TaskRabbit',
-  'theScore',
-  'Trivago',
-  'Xmartlabs',
-  'WyeWorks',
-  'Zoosk'
+  'Viget',
+  'Zalando',
+  'Zapier',
+  'Zynga',
+  'Dave Beazley',
+  'Edan Kwan',
+  'Grzegorz Gajos',
+  'Joe Armstrong',
+  'Kai Hendry',
+  'LiveOverflow'
 ]
 
 Struct.new('Blog', :name, :web_url, :rss_url)
 blogs = []
 
 # for each blog URL, check if rss URL exists
-matches.each_with_index do |match, index|
+matches.each do |match|
   name = match[0]
   web_url = match[1]
 
-  if temp_ignores.include?(name)
-      puts "#{name}: IGNORE [TEMPORARILY]"
-      next
+  if fast_forwards.include?(name)
+    puts "#{name}: TEMP IGNORE"
+    unavailable.push(Struct::Blog.new(name, web_url, nil))
+    next
   end
 
   # if rss_url already in existing opml file, use that; otherwise, do a lookup
@@ -78,13 +93,12 @@ matches.each_with_index do |match, index|
   else
     unavailable.push(Struct::Blog.new(name, web_url, rss_url))
   end
-
 end
 
 blogs.sort_by { |b| b.name.capitalize }
 unavailable.sort_by { |b| b.name.capitalize }
 
-# write opml
+# create and write to opml file
 xml = Builder::XmlMarkup.new(indent: 2)
 xml.instruct! :xml, version: '1.0', encoding: 'UTF-8'
 xml.tag!('opml', version: '1.0') do
